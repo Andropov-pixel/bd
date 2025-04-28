@@ -96,3 +96,5 @@ class DBManager:
 
     def get_company_id(self, company_name):
         pass
+
+    # есть какие-то ошибки
