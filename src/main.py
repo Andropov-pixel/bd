@@ -65,3 +65,5 @@ if __name__ == "__main__":
     print(manager.get_vacancies_with_keyword('Python'))
 
     manager.close_connection()
+
+    # есть какие-то ошибки

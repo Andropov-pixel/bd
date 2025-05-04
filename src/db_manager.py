@@ -9,16 +9,18 @@ class DBManager:
                 host=host,
                 database=database,
                 user=user,
-                password=password.encode('utf-8'),  # Преобразование пароля в байтовый объект
+                password=password,
                 options='-c client_encoding=UTF8'
             )
             print("Подключение к базе данных успешно установлено.")
+        except UnicodeDecodeError as ude:
+            raise ValueError(f"Произошла ошибка декодирования: {ude}")
         except Exception as e:
-            raise RuntimeError(f'Ошибка подключения к базе данных: {e}')
+            raise RuntimeError(f"Ошибка подключения к базе данных: {e}")
 
     def close_connection(self):
         """Закрывает соединение с базой данных."""
-        if hasattr(self, 'conn'):
+        if hasattr(self, 'conn') and self.conn:
             self.conn.close()
 
     def create_tables(self):
@@ -96,3 +98,5 @@ class DBManager:
 
     def get_company_id(self, company_name):
         pass
+
+    # есть какие-то ошибки

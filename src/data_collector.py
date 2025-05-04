@@ -37,3 +37,5 @@ class DataCollector:
             page += 1
 
         return vacancies
+
+    # есть какие-то ошибки
