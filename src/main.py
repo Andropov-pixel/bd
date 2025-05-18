@@ -4,24 +4,24 @@ from dotenv import load_dotenv
 import os
 
 
-def setup_database():
-    """Инициализация базы данных и создание таблиц."""
+def setup_database(manager: DBManager):
+    """Инициализирует базу данных и создаёт необходимые таблицы."""
     manager.create_tables()
 
 
 def collect_and_store_data(collector: DataCollector, manager: DBManager):
-    """Сбор данных о компаниях и вакансиях и запись их в базу данных."""
+    """Собирает данные о компаниях и вакансиях и сохраняет их в базу данных."""
     selected_companies_ids = [
-        786,  # Яндекс
+        786,      # Яндекс
         1122962,  # Сбер
-        15478,  # Mail.Ru Group
-        1540,  # РЖД
-        1740,  # Газпром нефть
-        3529,  # Альфа-Банк
-        78636,  # ВТБ Банк
-        3776,  # Сбербанк-Технологии
-        2180,  # Роснефть
-        78653  # Ozon
+        15478,    # Mail.Ru Group
+        1540,     # РЖД
+        1740,     # Газпром нефть
+        3529,     # Альфа-Банк
+        78636,    # ВТБ Банк
+        3776,     # Сбербанк-Технологии
+        2180,     # Роснефть
+        78653     # Ozon
     ]
 
     for company_id in selected_companies_ids:
@@ -32,27 +32,35 @@ def collect_and_store_data(collector: DataCollector, manager: DBManager):
         vacancies = collector.get_vacancies_by_company(company_id)
         for vacancy in vacancies:
             manager.insert_vacancy(
-                employer_id=manager.get_company_id(company_name),  # Метод для получения ID компании по имени
+                employer_id=manager.get_company_id(company_name),
                 title=vacancy['title'],
                 salary_from=vacancy['salary_from'],
                 salary_to=vacancy['salary_to'],
-                url=vacancy['url'])
+                url=vacancy['url']
+            )
 
 
 if __name__ == "__main__":
+    # Загрузка переменных из .env
     load_dotenv()
+
+    # Читаем настройки из переменных окружения
     db_host = os.getenv('DB_HOST')
     db_user = os.getenv('DB_USER')
     db_password = os.getenv('DB_PASSWORD')
     db_name = os.getenv('DB_NAME')
 
+    # Создаем экземпляр менеджеров базы данных и сбора данных
     manager = DBManager(db_host, db_name, db_user, db_password)
     collector = DataCollector()
 
-    setup_database()
+    # Инициализация структуры базы данных
+    setup_database(manager)
+
+    # Сбор и сохранение данных
     collect_and_store_data(collector, manager)
 
-    # Демонстрационные запросы
+    # Примеры запросов
     print("\nКомпании и количество вакансий:")
     print(manager.get_companies_and_vacancies_count())
 
@@ -61,9 +69,8 @@ if __name__ == "__main__":
     print("\nВакансии с зарплатой выше средней:")
     print(manager.get_vacancies_with_higher_salary())
 
-    print("\nВакансии содержащие слово 'Python':")
+    print("\nВакансии, содержащие слово 'Python':")
     print(manager.get_vacancies_with_keyword('Python'))
 
+    # Завершение работы с базой данных
     manager.close_connection()
-
-    # есть какие-то ошибки

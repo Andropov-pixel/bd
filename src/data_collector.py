@@ -38,4 +38,4 @@ class DataCollector:
 
         return vacancies
 
-    # есть какие-то ошибки
+    # есть какие-то ошибки 1
