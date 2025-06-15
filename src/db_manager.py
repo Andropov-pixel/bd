@@ -9,11 +9,12 @@ class DBManager:
         try:
             # Устанавливаем подключение к базе данных
             self.conn = psycopg2.connect(
-                host=host,
-                database=database,
-                user=user,
-                password=password,
-                options='-c client_encoding=UTF8'
+                host="localhost",
+                port=5432,
+                dbname="your_db",
+                user="your_user",
+                password="your_password",
+                connect_timeout=10
             )
             print("Подключение к базе данных успешно.")
         except psycopg2.Error as e:
