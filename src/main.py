@@ -1,76 +1,122 @@
-from db_manager import DBManager
-from data_collector import DataCollector
-from dotenv import load_dotenv
-import os
+import logging
 
+from src.api import APIManager
+from src.db_manager import DBManager
 
-def setup_database(manager: DBManager):
-    """Инициализирует базу данных и создаёт необходимые таблицы."""
-    manager.create_tables()
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
 
+# Конфигурация базы данных
+config = {
+    "dbname": "postgres",
+    "user": "postgres",
+    "password": "Vcr2025",
+    "host": "localhost",
+    "port": 5432,
+}
 
-def collect_and_store_data(collector: DataCollector, manager: DBManager):
-    """Собирает данные о компаниях и вакансиях и сохраняет их в базу данных."""
-    selected_companies_ids = [
-        786,      # Яндекс
-        1122962,  # Сбер
-        15478,    # Mail.Ru Group
-        1540,     # РЖД
-        1740,     # Газпром нефть
-        3529,     # Альфа-Банк
-        78636,    # ВТБ Банк
-        3776,     # Сбербанк-Технологии
-        2180,     # Роснефть
-        78653     # Ozon
-    ]
+company_ids = [
+    9140614,
+    11099814,
+    11674968,
+    11747243,
+    11826459,
+    5004072,
+    5775464,
+    4748227,
+    36227,
+    3643187,
+]
+db_manager = DBManager(config)
+db_manager.create_database()
 
-    for company_id in selected_companies_ids:
-        company_info = collector.get_company(company_id)
-        company_name = company_info.get('name')
-        manager.insert_company(company_name)
+try:
+    db_manager.connect()
 
-        vacancies = collector.get_vacancies_by_company(company_id)
-        for vacancy in vacancies:
-            manager.insert_vacancy(
-                employer_id=manager.get_company_id(company_name),
-                title=vacancy['title'],
-                salary_from=vacancy['salary_from'],
-                salary_to=vacancy['salary_to'],
-                url=vacancy['url']
-            )
+    # Создание таблиц
+    db_manager.create_tables()
+    vacancies_exist = db_manager.get_all_vacancies()
 
+    if not vacancies_exist:
+        print("В базе данных нет вакансий. Загружаем данные из API")
 
-if __name__ == "__main__":
-    # Загрузка переменных из .env
-    load_dotenv()
+        found_companies = APIManager.get_companies(company_ids)
 
-    # Читаем настройки из переменных окружения
-    db_host = os.getenv('DB_HOST')
-    db_user = os.getenv('DB_USER')
-    db_password = os.getenv('DB_PASSWORD')
-    db_name = os.getenv('DB_NAME')
+        if found_companies:
+            for company in found_companies:
+                employer_name = company.get("name")
+                employer_id = db_manager.insert_employer(employer_name)
 
-    # Создаем экземпляр менеджеров базы данных и сбора данных
-    manager = DBManager(db_host, db_name, db_user, db_password)
-    collector = DataCollector()
+                if employer_id:
+                    vacancies = APIManager.get_vacancies(company["id"])
 
-    # Инициализация структуры базы данных
-    setup_database(manager)
+                    for vacancy in vacancies:
+                        vacancy_name = vacancy.get("name")
+                        salary = vacancy.get("salary", {})
+                        salary_min = salary.get("from") if salary else None
+                        salary_max = salary.get("to") if salary else None
 
-    # Сбор и сохранение данных
-    collect_and_store_data(collector, manager)
+                        db_manager.insert_vacancy(
+                            name=vacancy_name,
+                            salary_min=salary_min,
+                            salary_max=salary_max,
+                            employer_id=employer_id,
+                        )
+    while True:
+        print("1. Показать компании и количество вакансий")
+        print("2. Показать среднюю зарплату")
+        print("3. Показать вакансии по ключевому слову")
+        print("4. Показать вакансии с зарплатой выше средней")
+        print("5. Показать все вакансии")
+        option = input("Выберите опцию (или 'exit' для выхода): ")
 
-    # Примеры запросов
-    print("\nКомпании и количество вакансий:")
-    print(manager.get_companies_and_vacancies_count())
+        if option == "1":
+            companies = db_manager.get_companies_and_vacancies_count()
+            for company in companies:
+                print(f"Компания: {company[0]}, Количество вакансий: {company[1]}")
 
-    print("\nСредняя зарплата:", manager.get_avg_salary(), "\n")
+        elif option == "2":
+            avg_salary = db_manager.get_avg_salary()
+            print(f"Средняя зарплата: {avg_salary}")
 
-    print("\nВакансии с зарплатой выше средней:")
-    print(manager.get_vacancies_with_higher_salary())
+        elif option == "3":
+            keyword = input("Введите ключевое слово: ")
+            vacancies = db_manager.get_vacancies_with_keyword(keyword)
+            if vacancies:
+                for vacancy in vacancies:
+                    title = vacancy[1]
+                    salary_min = vacancy[2]
+                    salary_max = vacancy[3]
+                    print(
+                        f"Вакансия: {title}, Минимальная зарплата: {salary_min}, Максимальная зарплата: {salary_max}"
+                    )
+            else:
+                print("Вакансии не найдены.")
 
-    print("\nВакансии, содержащие слово 'Python':")
-    print(manager.get_vacancies_with_keyword('Python'))
+        elif option == "4":
+            high_salary_vacancies = db_manager.get_vacancies_with_higher_salary()
+            if high_salary_vacancies:
+                for vacancy in high_salary_vacancies:
+                    title = vacancy[1]
+                    salary_min = vacancy[2]
+                    salary_max = vacancy[3]
+                    print(
+                        f"Вакансия: {title}, Минимальная зарплата: {salary_min}, Максимальная зарплата: {salary_max}"
+                    )
+            else:
+                print("Вакансии с высокой зарплатой не найдены.")
 
-    # Завершение работы с базой данных
-    manager.close_connection()
+        elif option == "5":
+            all_vacancies = db_manager.get_all_vacancies()
+            for vacancy in all_vacancies:
+                print(vacancy)
+
+        elif option.lower() == "exit":
+            break
+
+        else:
+            print("Неверный выбор. Пожалуйста, попробуйте снова.")
+
+finally:
+    # Закрытие соединения с базой данных
+    db_manager.close()
